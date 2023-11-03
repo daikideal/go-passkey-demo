@@ -1,0 +1,17 @@
+version: '3.3'
+
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - 15432:5432
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./local/postgres:/docker-entrypoint-initdb.d
+    environment:
+      # postgresの公式イメージを使用する場合、指定が必須となる
+      POSTGRES_PASSWORD: password
+
+volumes:
+  postgres:
+    driver: local
