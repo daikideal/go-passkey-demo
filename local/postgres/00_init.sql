@@ -9,4 +9,4 @@ CREATE ROLE myuser
 WITH
   LOGIN PASSWORD 'mypassword';
 
-GRANT ALL PRIVILEGES SCHEMA myschema TO myuser;
+GRANT ALL PRIVILEGES ON SCHEMA myschema TO myuser;
