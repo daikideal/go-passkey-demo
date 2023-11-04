@@ -1,41 +1,21 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 
+	"github.com/daikideal/go-passkey-demo/db"
 	_ "github.com/lib/pq"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/migrate"
 	"github.com/urfave/cli/v2"
 )
 
-// TODO: 環境変数から取得する
-var DSN = fmt.Sprintf(
-	"host=%s port=%d dbname=%s user=%s password='%s' sslmode=disable search_path=%s",
-	"localhost",
-	15432,
-	"mydb",
-	"myuser",
-	"mypassword",
-	"myschema",
-)
-
 func main() {
-	// DBに接続
-	sqldb, err := sql.Open("postgres", DSN)
-	defer sqldb.Close()
-	if err != nil {
-		panic(err)
-	}
+	db := db.GetDB()
 
-	db := bun.NewDB(sqldb, pgdialect.New())
-
-	err = db.Ping()
+	err := db.Ping()
 	if err != nil {
 		panic(err)
 	}
@@ -64,7 +44,7 @@ func main() {
 // # マイグレーションコマンドの定義
 //
 // [example/migrate/main.go]からコピーした。
-// 
+//
 // マイグレーションファイルはsqlかgoで作成できる。
 // sqlの方が認知負荷は小さそうだが、goの方は同じファイルにupとdownの両方を書くことができるので、
 // マイグレーションファイルが増えても管理しやすいかもしれない。

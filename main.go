@@ -1,25 +1,12 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
 	"time"
+
+	"github.com/daikideal/go-passkey-demo/db"
 
 	"github.com/labstack/echo/v4"
 	_ "github.com/lib/pq"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
-)
-
-// TODO: 環境変数から取得する
-var DSN = fmt.Sprintf(
-	"host=%s port=%d dbname=%s user=%s password='%s' sslmode=disable search_path=%s",
-	"localhost",
-	15432,
-	"mydb",
-	"myuser",
-	"mypassword",
-	"myschema",
 )
 
 func main() {
@@ -56,12 +43,7 @@ type User struct {
 }
 
 func getUser() echo.HandlerFunc {
-	sqldb, err := sql.Open("postgres", DSN)
-	if err != nil {
-		panic(err)
-	}
-
-	db := bun.NewDB(sqldb, pgdialect.New())
+	db := db.GetDB()
 
 	return func(ctx echo.Context) error {
 		ctx.Logger().Info("GET /user")
@@ -79,12 +61,7 @@ func getUser() echo.HandlerFunc {
 }
 
 func createUser() echo.HandlerFunc {
-	sqldb, err := sql.Open("postgres", DSN)
-	if err != nil {
-		panic(err)
-	}
-
-	db := bun.NewDB(sqldb, pgdialect.New())
+	db := db.GetDB()
 
 	return func(ctx echo.Context) error {
 		ctx.Logger().Info("POST /user")
