@@ -34,7 +34,6 @@ func GetDB() *bun.DB {
 
 func initDB() {
 	sqldb, err := sql.Open("postgres", dsn)
-	defer sqldb.Close()
 	if err != nil {
 		panic(err)
 	}
