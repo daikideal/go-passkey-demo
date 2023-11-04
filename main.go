@@ -14,7 +14,7 @@ func main() {
 
 	e.GET("/", hello())
 	e.POST("/users", createUser())
-	e.GET("/users", getUser())
+	e.GET("/users", getUsers())
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
@@ -42,7 +42,7 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at" bun:"updated_at"`
 }
 
-func getUser() echo.HandlerFunc {
+func getUsers() echo.HandlerFunc {
 	db := db.GetDB()
 
 	return func(ctx echo.Context) error {
