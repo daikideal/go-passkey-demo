@@ -66,14 +66,18 @@ func createUser() echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		ctx.Logger().Info("POST /user")
 
-		mockedReqUser := &User{
-			Name:     "test",
-			Email:    "test@example.com",
-			Password: "testpass",
+		var user User
+		err := ctx.Bind(&user)
+		if err != nil {
+			ctx.Logger().Errorf("Failed to insert user: %v\n", err)
+			return ctx.JSON(400, err)
 		}
 
+		// TODO: バリデーション
+		// TODO: パスワードのハッシュ化
+
 		res, err := db.NewInsert().
-			Model(mockedReqUser).
+			Model(&user).
 			Column("name", "email", "password").
 			Returning("*").
 			Exec(ctx.Request().Context())
