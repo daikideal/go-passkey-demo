@@ -11,6 +11,10 @@ services:
     environment:
       # postgresの公式イメージを使用する場合、指定が必須となる
       POSTGRES_PASSWORD: password
+  redis:
+    image: redis:7.2.3
+    ports:
+      - 16379:6379
 
 volumes:
   postgres:

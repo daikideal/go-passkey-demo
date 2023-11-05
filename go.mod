@@ -4,20 +4,23 @@ go 1.21.3
 
 require (
 	github.com/go-webauthn/webauthn v0.8.6
+	github.com/google/uuid v1.4.0
 	github.com/labstack/echo/v4 v4.11.2
 	github.com/lib/pq v1.10.9
+	github.com/redis/go-redis/v9 v9.3.0
 	github.com/uptrace/bun v1.1.16
 	github.com/uptrace/bun/dialect/pgdialect v1.1.16
 	github.com/urfave/cli/v2 v2.25.7
 )
 
 require (
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
 	github.com/go-webauthn/x v0.1.4 // indirect
 	github.com/golang-jwt/jwt/v5 v5.0.0 // indirect
 	github.com/google/go-tpm v0.9.0 // indirect
-	github.com/google/uuid v1.4.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/labstack/gommon v0.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect

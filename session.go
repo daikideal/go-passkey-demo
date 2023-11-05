@@ -1,59 +1,63 @@
 package main
 
-/*
-セッション管理方法を考えるのが面倒だったので以下より拝借。
-production運用ならば、おそらくRedisなどを使うのがよい。
-
-https://github.com/subkaitaku/webauthn-example/blob/main/session.go
-*/
-
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"sync"
+	"time"
 
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/redis/go-redis/v9"
 )
 
-type sessiondb struct {
-	sessions map[string]*webauthn.SessionData
-	mu       sync.RWMutex
+const duration time.Duration = 5 * time.Minute
+
+var sessionStore *redis.Client
+
+func init() {
+	sessionStore = redis.NewClient(&redis.Options{
+		Addr:     "localhost:16379",
+		Password: "",
+		DB:       0,
+	})
 }
 
-var sessionDb *sessiondb = &sessiondb{
-	sessions: make(map[string]*webauthn.SessionData),
+func CreateSession(ctx context.Context, data *webauthn.SessionData) (string, error) {
+	// REVEIW: user/:id 配下に作成した方がいいか？
+	sessionId, _ := random(32)
+
+	// redisに直接structを保存することはできない。
+	// 試したところ、byte列にすれば保存できた。
+	value, err := json.Marshal(data)
+	if err != nil {
+		return "", fmt.Errorf("Failed to encoding data to redis value: %w", err)
+	}
+
+	if err := sessionStore.Set(ctx, sessionId, value, duration).Err(); err != nil {
+		return "", fmt.Errorf("Failed to create session: %w", err)
+	}
+
+	return sessionId, nil
 }
 
-func (db *sessiondb) GetSession(sessionID string) (*webauthn.SessionData, error) {
+func GetSession(ctx context.Context, sessionID string) (*webauthn.SessionData, error) {
+	val, err := sessionStore.Get(ctx, sessionID).Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get session: %w", err)
+	}
 
-	db.mu.Lock()
-	defer db.mu.Unlock()
-
-	session, ok := db.sessions[sessionID]
-	if !ok {
-		return nil, fmt.Errorf("error getting session '%s': does not exist", sessionID)
+	var session *webauthn.SessionData
+	if err = json.Unmarshal(val, &session); err != nil {
+		return nil, fmt.Errorf("Failed to decode session: %w", err)
 	}
 
 	return session, nil
 }
 
-func (db *sessiondb) DeleteSession(sessionID string) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-
-	delete(db.sessions, sessionID)
-}
-
-func (db *sessiondb) StartSession(data *webauthn.SessionData) string {
-
-	db.mu.Lock()
-	defer db.mu.Unlock()
-
-	sessionId, _ := random(32)
-	db.sessions[sessionId] = data
-
-	return sessionId
+func DeleteSession(ctx context.Context, sessionID string) {
+	sessionStore.Del(ctx, sessionID)
 }
 
 func random(length int) (string, error) {

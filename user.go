@@ -139,9 +139,14 @@ func beginRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 
 		// 認証機登録セッションを開始
 		// cookieを使用してはいけない場合、レスポンスで返してやるのがよいか。
+		sessionId, err := CreateSession(ctx.Request().Context(), session)
+		if err != nil {
+			ctx.Logger().Errorf("Failed to start session: %v\n", err)
+			return ctx.JSON(500, nil)
+		}
 		ctx.SetCookie(&http.Cookie{
 			Name:  "registration",
-			Value: sessionDb.StartSession(session),
+			Value: sessionId,
 			Path:  "/",
 		})
 
@@ -163,7 +168,7 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 			ctx.Logger().Errorf("Cookie is not set: %v\n", err)
 			return ctx.JSON(400, nil)
 		}
-		session, err := sessionDb.GetSession(cookie.Value)
+		session, err := GetSession(ctx.Request().Context(), cookie.Value)
 		if err != nil {
 			ctx.Logger().Errorf("Session is not found: %v\n", err)
 			return ctx.JSON(400, nil)
@@ -180,6 +185,8 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 		user.Credentials = append(user.Credentials, *credential)
 		usersInMemory = append(usersInMemory, user)
 		ctx.Logger().Infof("Users: %+v\n", usersInMemory)
+
+		DeleteSession(ctx.Request().Context(), cookie.Value)
 
 		return ctx.JSON(201, "Registration success!")
 	}
