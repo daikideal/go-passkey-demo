@@ -42,3 +42,17 @@ go run .
 以下の URL にアクセス:
 
 http://localhost:8080/
+
+## postgres にログイン
+
+起動した postgres コンテナで psql コマンドを実行し、db にログイン:
+
+```bash
+docker compose exec -it postgres psql -d mydb -U myuser
+```
+
+スキーマを選択:
+
+```sql
+SET search_path TO myschema;
+```
