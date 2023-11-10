@@ -6,15 +6,27 @@ import (
 	"time"
 
 	"github.com/daikideal/go-passkey-demo/db"
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/labstack/echo/v4"
 
 	googleUuid "github.com/google/uuid"
 )
 
-var usersInMemory []*User
-
 type uuid = string
+
+// この構造体を User に紐づけて保存するための構造体
+// https://pkg.go.dev/github.com/go-webauthn/webauthn@v0.8.6/webauthn#Credential
+type WebauthnCredentials struct {
+	ID              uuid                              `json:"id" bun:"id"`
+	UserID          uuid                              `json:"user_id" bun:"user_id"`
+	CredentialID    []byte                            `json:"credential_id" bun:"credential_id"`
+	PublicKey       []byte                            `json:"public_key" bun:"public_key"`
+	AttestationType string                            `json:"attestation_type" bun:"attestation_type"`
+	Transport       []protocol.AuthenticatorTransport `json:"transport" bun:"transport,array"`
+	Flags           webauthn.CredentialFlags          `json:"flags" bun:"flags"`
+	Authenticator   webauthn.Authenticator            `json:"authenticator" bun:"authenticator"`
+}
 
 type User struct {
 	ID        uuid      `json:"id" bun:"id"`
@@ -181,12 +193,25 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 			return ctx.JSON(500, nil)
 		}
 
-		// 何を保存すればいいかわからない。。
-		user.Credentials = append(user.Credentials, *credential)
-		usersInMemory = append(usersInMemory, user)
-		ctx.Logger().Infof("Users: %+v\n", usersInMemory)
+		newWebautnCredential := &WebauthnCredentials{
+			UserID:          user.ID,
+			CredentialID:    credential.ID,
+			PublicKey:       credential.PublicKey,
+			AttestationType: credential.AttestationType,
+			Transport:       credential.Transport,
+			Flags:           credential.Flags,
+			Authenticator:   credential.Authenticator,
+		}
 
-		DeleteSession(ctx.Request().Context(), cookie.Value)
+		db := db.GetDB()
+		_, err = db.NewInsert().
+			Model(newWebautnCredential).
+			Column("user_id", "credential_id", "public_key", "attestation_type", "transport", "flags", "authenticator").
+			Exec(ctx.Request().Context())
+		if err != nil {
+			ctx.Logger().Errorf("Failed to insert webauthn credential: %v\n", err)
+			return ctx.JSON(500, nil)
+		}
 
 		return ctx.JSON(201, "Registration success!")
 	}
