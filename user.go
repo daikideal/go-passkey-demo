@@ -18,7 +18,7 @@ type uuid = string
 // この構造体を User に紐づけて保存するための構造体
 // https://pkg.go.dev/github.com/go-webauthn/webauthn@v0.8.6/webauthn#Credential
 type WebauthnCredentials struct {
-	ID              uuid                              `json:"id" bun:"id"`
+	ID              uuid                              `json:"id" bun:"id,pk"`
 	UserID          uuid                              `json:"user_id" bun:"user_id"`
 	CredentialID    []byte                            `json:"credential_id" bun:"credential_id"`
 	PublicKey       []byte                            `json:"public_key" bun:"public_key"`
@@ -29,14 +29,13 @@ type WebauthnCredentials struct {
 }
 
 type User struct {
-	ID        uuid      `json:"id" bun:"id"`
-	Name      string    `json:"name" bun:"name"`
-	Email     string    `json:"email" bun:"email"`
-	Password  string    `json:"password" bun:"password"`
-	CreatedAt time.Time `json:"created_at" bun:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" bun:"updated_at"`
-
-	Credentials []webauthn.Credential
+	ID                  uuid                  `json:"id" bun:"id,pk"`
+	Name                string                `json:"name" bun:"name"`
+	Email               string                `json:"email" bun:"email"`
+	Password            string                `json:"password" bun:"password"`
+	WebauthnCredentials []WebauthnCredentials `json:"webauthn_credentials" bun:"rel:has-many,join:id=user_id"`
+	CreatedAt           time.Time             `json:"created_at" bun:"created_at"`
+	UpdatedAt           time.Time             `json:"updated_at" bun:"updated_at"`
 }
 
 // ユーザーには表示しないが、WebAuthnでユーザーを識別するために使用するID。
@@ -62,7 +61,20 @@ func (user *User) WebAuthnDisplayName() string {
 }
 
 func (user *User) WebAuthnCredentials() []webauthn.Credential {
-	return user.Credentials
+	res := make([]webauthn.Credential, len(user.WebauthnCredentials))
+
+	for i, v := range user.WebauthnCredentials {
+		res[i] = webauthn.Credential{
+			ID:              v.CredentialID,
+			PublicKey:       v.PublicKey,
+			AttestationType: v.AttestationType,
+			Transport:       v.Transport,
+			Flags:           v.Flags,
+			Authenticator:   v.Authenticator,
+		}
+	}
+
+	return res
 }
 
 // 非推奨らしいので空文字を返す
@@ -79,6 +91,7 @@ func getUsers() echo.HandlerFunc {
 		var res []*User
 		if err := db.NewSelect().
 			Model(&res).
+			Relation("WebauthnCredentials").
 			Column("*").
 			Scan(ctx.Request().Context()); err != nil {
 			ctx.Logger().Errorf("Failed to select user: %v\n", err)
@@ -126,6 +139,7 @@ func findUserByID(ctx context.Context, id uuid) (*User, error) {
 	var user User
 	err := db.NewSelect().
 		Model(&user).
+		Relation("WebauthnCredentials").
 		Column("*").
 		Where("id = ?", id).
 		Scan(ctx)
