@@ -28,6 +28,8 @@ func main() {
 	e.GET("/users", getUsers())
 	e.POST("/users/:id/webauthn/registration/options", beginRegistration(webAuthn))
 	e.POST("/users/:id/webauthn/registration/verifications", finishRegistration(webAuthn))
+	e.POST("/authentication/options", beginLogin(webAuthn))
+	e.POST("/authentication/verifications", finishLogin(webAuthn))
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

@@ -8,7 +8,7 @@
  * テスト用データ
  */
 const constants = {
-  userId: "b5ec87e5-1309-4d6d-8963-b50e1d47575a",
+  userId: "28d8cb06-2a36-4a5e-baeb-dfcfc1698f08",
 };
 
 /**
@@ -100,58 +100,67 @@ const registerUser = () => {
     });
 };
 
-// const loginUser = () => {
-//   const username = document.getElementById("email").value;
-//   if (username === "") {
-//     alert("Please enter a username");
-//     return;
-//   }
+const loginUser = () => {
+  // NOTE: ユーザーネームレス認証を目指すので、ここは入力しなくていい
+  //   const username = document.getElementById("email").value;
+  //   if (username === "") {
+  //     alert("Please enter a username");
+  //     return;
+  //   }
 
-//   fetch("/login/begin/" + username)
-//     .then((response) => response.json())
-//     .then((credentialRequestOptions) => {
-//       credentialRequestOptions.publicKey.challenge = bufferDecode(
-//         credentialRequestOptions.publicKey.challenge
-//       );
-//       credentialRequestOptions.publicKey.allowCredentials.forEach((item) => {
-//         item.id = bufferDecode(item.id);
-//       });
+  fetch("/authentication/options", { method: "POST" })
+    .then((response) => response.json())
+    .then((credentialRequestOptions) => {
+      credentialRequestOptions.publicKey.challenge = bufferDecode(
+        credentialRequestOptions.publicKey.challenge
+      );
+      // NOTE: allowCredentials には 構造体タグで omitempty がついており、
+      //       レスポンスにそもそも含まれていなかったりするのでここでケアする。
+      credentialRequestOptions.publicKey.allowCredentials
+        ? credentialRequestOptions.publicKey.allowCredentials.forEach(
+            (item) => {
+              item.id = bufferDecode(item.id);
+            }
+          )
+        : (credentialRequestOptions.publicKey.allowCredentials = undefined);
 
-//       return navigator.credentials.get({
-//         publicKey: credentialRequestOptions.publicKey,
-//       });
-//     })
-//     .then((assertion) => {
-//       const authData = assertion.response.authenticatorData;
-//       const clientDataJSON = assertion.response.clientDataJSON;
-//       const rawId = assertion.rawId;
-//       const sig = assertion.response.signature;
-//       const userHandle = assertion.response.userHandle;
+      return navigator.credentials.get({
+        publicKey: credentialRequestOptions.publicKey,
+      });
+    })
+    .then((assertion) => {
+      console.log("assertion", { assertion });
 
-//       return fetch("/login/finish/" + username, {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//         },
-//         body: JSON.stringify({
-//           id: assertion.id,
-//           rawId: bufferEncode(rawId),
-//           type: assertion.type,
-//           response: {
-//             authenticatorData: bufferEncode(authData),
-//             clientDataJSON: bufferEncode(clientDataJSON),
-//             signature: bufferEncode(sig),
-//             userHandle: bufferEncode(userHandle),
-//           },
-//         }),
-//       });
-//     })
-//     .then((response) => response.json())
-//     .then(() => {
-//       alert("Successfully logged in " + username + "!");
-//     })
-//     .catch((error) => {
-//       console.log(error);
-//       alert("Failed to login " + username);
-//     });
-// };
+      const authData = assertion.response.authenticatorData;
+      const clientDataJSON = assertion.response.clientDataJSON;
+      const rawId = assertion.rawId;
+      const sig = assertion.response.signature;
+      const userHandle = assertion.response.userHandle;
+
+      return fetch("/authentication/verifications", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: assertion.id,
+          rawId: bufferEncode(rawId),
+          type: assertion.type,
+          response: {
+            authenticatorData: bufferEncode(authData),
+            clientDataJSON: bufferEncode(clientDataJSON),
+            signature: bufferEncode(sig),
+            userHandle: bufferEncode(userHandle),
+          },
+        }),
+      });
+    })
+    .then((response) => response.json())
+    .then(() => {
+      alert("Successfully logged in!");
+    })
+    .catch((error) => {
+      console.error(error);
+      alert("Failed to login!");
+    });
+};
