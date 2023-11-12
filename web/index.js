@@ -11,11 +11,24 @@ const constants = {
   userId: "b5ec87e5-1309-4d6d-8963-b50e1d47575a",
 };
 
-// Base64 to ArrayBuffer
-const bufferDecode = (value) =>
-  Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
+/**
+ * URLBase64 to ArrayBuffer(Uint8Array)
+ *
+ * NOTE: go-webauthnの BeginRegistration で生成される challenge はURLBase64でエンコードされている。
+ *       公式によると json.Unmarshal すればURLデコードしてくれるらしいのだが、2023-11-12現在、自分の環境だとそういう挙動にはなっていなかった。
+ *       ただ、URLBase64で渡されることをクライアントと合意していれば問題ないと思われるので、デコード(= "-"を"+"に、"_"を"/"に置換)してから ArrayBuffer に変換する。
+ *
+ * @see {@link https://pkg.go.dev/github.com/go-webauthn/webauthn@v0.8.6/protocol#URLEncodedBase64}
+ * @see {@link https://qiita.com/kunihiros/items/2722d690b1525813c45e#base64-url}
+ */
+const bufferDecode = (value) => {
+  return Uint8Array.from(
+    atob(value.replace(/-/g, "+").replace(/_/g, "/")),
+    (c) => c.charCodeAt(0)
+  );
+};
 
-// ArrayBuffer to URLBase64
+// ArrayBuffer(Uint8Array) to URLBase64
 const bufferEncode = (value) =>
   btoa(String.fromCharCode(...new Uint8Array(value)))
     .replace(/\+/g, "-")
