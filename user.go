@@ -9,8 +9,6 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/labstack/echo/v4"
-
-	googleUuid "github.com/google/uuid"
 )
 
 type uuid = string
@@ -39,16 +37,11 @@ type User struct {
 }
 
 // ユーザーには表示しないが、WebAuthnでユーザーを識別するために使用するID。
-// 64バイトのランダムなバイト列である必要がある。
-// 専用のカラムを追加するべきなのかもしれないが、一旦は User.ID(UUID) をエンコーディングしたものを使用する
-// 今回、UUIDはpostgresが生成するものであるため、エラーハンドリングは考えない。
+// UUIDをバイト列に変換すると、結果のサイズは16バイトになるので、これを使用する。
 //
 // https://w3c.github.io/webauthn/#dom-publickeycredentialuserentity-id
 func (user *User) WebAuthnID() []byte {
-	parsedUUID, _ := googleUuid.Parse(user.ID)
-	uuidBytes := parsedUUID[:]
-
-	return uuidBytes
+	return []byte(user.ID)
 }
 
 func (user *User) WebAuthnName() string {
