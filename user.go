@@ -1,7 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"time"
 
@@ -29,8 +34,6 @@ type WebauthnCredentials struct {
 type User struct {
 	ID                  uuid                  `json:"id" bun:"id,pk"`
 	Name                string                `json:"name" bun:"name"`
-	Email               string                `json:"email" bun:"email"`
-	Password            string                `json:"password" bun:"password"`
 	WebauthnCredentials []WebauthnCredentials `json:"webauthn_credentials" bun:"rel:has-many,join:id=user_id"`
 	CreatedAt           time.Time             `json:"created_at" bun:"created_at"`
 	UpdatedAt           time.Time             `json:"updated_at" bun:"updated_at"`
@@ -107,9 +110,6 @@ func createUser() echo.HandlerFunc {
 			return ctx.JSON(400, err)
 		}
 
-		// TODO: バリデーション
-		// TODO: パスワードのハッシュ化
-
 		res, err := db.NewInsert().
 			Model(&user).
 			Column("name", "email", "password").
@@ -143,11 +143,66 @@ func findUserByID(ctx context.Context, id uuid) (*User, error) {
 	return &user, nil
 }
 
+func findUserByName(ctx context.Context, name string) (*User, error) {
+	db := db.GetDB()
+
+	var user User
+	err := db.NewSelect().
+		Model(&user).
+		Relation("WebauthnCredentials").
+		Column("*").
+		Where("name = ?", name).
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func createNewUser(ctx context.Context, name string) (*User, error) {
+	db := db.GetDB()
+
+	user := &User{
+		Name: name,
+	}
+	_, err := db.NewInsert().
+		Model(user).
+		Column("name").
+		Returning("*").
+		Exec(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+type beginRegistrationReqest struct {
+	Username string `json:"username"`
+}
+
 func beginRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
-		user, err := findUserByID(ctx.Request().Context(), ctx.Param("id"))
+		var req beginRegistrationReqest
+		if err := ctx.Bind(&req); err != nil {
+			ctx.Logger().Errorf("Failed to process request: %v\n", err)
+			return ctx.JSON(400, nil)
+		}
+
+		// 認証機を登録するユーザーを特定。存在しない場合は新規作成する。
+		user, err := findUserByName(context.Background(), req.Username)
 		if err != nil {
-			return ctx.JSON(404, nil)
+			if errors.Is(err, sql.ErrNoRows) {
+				user, err = createNewUser(context.Background(), req.Username)
+				if err != nil {
+					ctx.Logger().Errorf("Failed to create user: %v\n", err)
+					return ctx.JSON(500, nil)
+				}
+			} else {
+				ctx.Logger().Errorf("Failed to find user: %v\n", err)
+				return ctx.JSON(400, nil)
+			}
 		}
 
 		options, session, err := w.BeginRegistration(user)
@@ -173,9 +228,28 @@ func beginRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 	}
 }
 
+type finishRegistrationReqest struct {
+	protocol.CredentialCreationResponse
+	Username string `json:"username"`
+}
+
 func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
-		user, err := findUserByID(ctx.Request().Context(), ctx.Param("id"))
+		body, err := io.ReadAll(ctx.Request().Body)
+
+		req := &finishRegistrationReqest{}
+		err = json.Unmarshal(body, req)
+		if err != nil {
+			ctx.Logger().Errorf("Failed to parse request: %v\n", err)
+			return ctx.JSON(400, nil)
+		}
+
+		// リクエストボディを元に戻す。そうしないと、FinishRegistration に ctx.Request() を渡した後、
+		// ParseCredentialCreationResponseBody でエラーになる。
+		// ref. https://syossan.hateblo.jp/entry/2019/01/11/175932
+		ctx.Request().Body = io.NopCloser(bytes.NewBuffer(body))
+
+		user, err := findUserByName(ctx.Request().Context(), req.Username)
 		if err != nil {
 			ctx.Logger().Errorf("User is not found: %v\n", err)
 			return ctx.JSON(404, nil)

@@ -5,13 +5,6 @@
  */
 
 /**
- * テスト用データ
- */
-const constants = {
-  userId: "cae3d7d7-4132-4dcc-bbc3-be1e3ef9a366",
-};
-
-/**
  * URLBase64 to ArrayBuffer(Uint8Array)
  *
  * NOTE: go-webauthnの BeginRegistration で生成される challenge はURLBase64でエンコードされている。
@@ -42,8 +35,14 @@ const registerUser = () => {
     return;
   }
 
-  fetch(`/users/${constants.userId}/webauthn/registration/options`, {
+  fetch(`/registration/options`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      username: username,
+    }),
   })
     .then((response) => response.json())
     .then((credentialCreationOptions) => {
@@ -71,24 +70,22 @@ const registerUser = () => {
       const rawId = credential.rawId;
 
       // 認証機の登録を完了
-      return fetch(
-        `/users/${constants.userId}/webauthn/registration/verifications`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+      return fetch(`/registration/verifications`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: credential.id,
+          rawId: bufferEncode(rawId),
+          type: credential.type,
+          response: {
+            attestationObject: bufferEncode(attestationObject),
+            clientDataJSON: bufferEncode(clientDataJSON),
           },
-          body: JSON.stringify({
-            id: credential.id,
-            rawId: bufferEncode(rawId),
-            type: credential.type,
-            response: {
-              attestationObject: bufferEncode(attestationObject),
-              clientDataJSON: bufferEncode(clientDataJSON),
-            },
-          }),
-        }
-      );
+          username: username,
+        }),
+      });
     })
     .then((response) => response.json())
     .then(() => {

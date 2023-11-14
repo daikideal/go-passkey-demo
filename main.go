@@ -26,8 +26,10 @@ func main() {
 	e.GET("/", index())
 	e.POST("/users", createUser())
 	e.GET("/users", getUsers())
-	e.POST("/users/:id/webauthn/registration/options", beginRegistration(webAuthn))
-	e.POST("/users/:id/webauthn/registration/verifications", finishRegistration(webAuthn))
+	// 認証機の登録
+	e.POST("/registration/options", beginRegistration(webAuthn))
+	e.POST("/registration/verifications", finishRegistration(webAuthn))
+	// 認証
 	e.POST("/authentication/options", beginLogin(webAuthn))
 	e.POST("/authentication/verifications", finishLogin(webAuthn))
 
