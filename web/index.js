@@ -111,15 +111,16 @@ const loginUser = () => {
       credentialRequestOptions.publicKey.challenge = bufferDecode(
         credentialRequestOptions.publicKey.challenge
       );
-      // NOTE: allowCredentials には 構造体タグで omitempty がついており、
-      //       レスポンスにそもそも含まれていなかったりするのでここでケアする。
-      credentialRequestOptions.publicKey.allowCredentials
-        ? credentialRequestOptions.publicKey.allowCredentials.forEach(
-            (item) => {
-              item.id = bufferDecode(item.id);
-            }
-          )
-        : (credentialRequestOptions.publicKey.allowCredentials = undefined);
+      // NOTE: ここで allowCredentials をリクエストに詰めるということは、事前にユーザーの特定ができていないといけないということで、
+      //       ユーザーネームレス認証にはならない。
+      //       https://qiita.com/silane1001/items/5ebb7c097fa255cac2b9
+      //   credentialRequestOptions.publicKey.allowCredentials
+      //     ? credentialRequestOptions.publicKey.allowCredentials.forEach(
+      //         (item) => {
+      //           item.id = bufferDecode(item.id);
+      //         }
+      //       )
+      //     : (credentialRequestOptions.publicKey.allowCredentials = undefined);
 
       return navigator.credentials.get({
         publicKey: credentialRequestOptions.publicKey,
