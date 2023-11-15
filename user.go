@@ -205,7 +205,11 @@ func beginRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 			}
 		}
 
-		options, session, err := w.BeginRegistration(user)
+		options, session, err := w.BeginRegistration(
+			user,
+			// パスキー認証が試したいので、 Resident Key しかサポートしなくする。
+			webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
+		)
 		if err != nil {
 			ctx.Logger().Errorf("Failed to begin registration: %v\n", err)
 			return ctx.JSON(500, nil)
