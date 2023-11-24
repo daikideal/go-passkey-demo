@@ -73,6 +73,22 @@ func (user *User) WebAuthnCredentials() []webauthn.Credential {
 	return res
 }
 
+// このユーザーがすでに登録している認証器の情報を生成するためのメソッド。
+// webauthn.BeginRegistration に、同じ認証器が複数登録されるのを防ぐオプションを設定するために使用する。
+func (user *User) CredentialExcludeList() []protocol.CredentialDescriptor {
+
+	credentialExcludeList := []protocol.CredentialDescriptor{}
+	for _, cred := range user.WebauthnCredentials {
+		descriptor := protocol.CredentialDescriptor{
+			Type:         protocol.PublicKeyCredentialType,
+			CredentialID: cred.CredentialID, // protocol.URLEncodedBase64 は []byte のアノテーションなのでこれで問題ない
+		}
+		credentialExcludeList = append(credentialExcludeList, descriptor)
+	}
+
+	return credentialExcludeList
+}
+
 // 非推奨らしいので空文字を返す
 func (user *User) WebAuthnIcon() string {
 	return ""
@@ -209,6 +225,7 @@ func beginRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 			user,
 			// パスキー認証が試したいので、 Resident Key しかサポートしなくする。
 			webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
+			webauthn.WithExclusions(user.CredentialExcludeList()),
 		)
 		if err != nil {
 			ctx.Logger().Errorf("Failed to begin registration: %v\n", err)
