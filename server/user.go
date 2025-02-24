@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -240,9 +241,10 @@ func beginRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 			return ctx.JSON(500, nil)
 		}
 		ctx.SetCookie(&http.Cookie{
-			Name:  "registration",
-			Value: sessionId,
-			Path:  "/",
+			Name:     "registration",
+			Value:    sessionId,
+			Path:     "/",
+			HttpOnly: true,
 		})
 
 		return ctx.JSON(200, options)
@@ -251,12 +253,17 @@ func beginRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 
 type finishRegistrationReqest struct {
 	protocol.CredentialCreationResponse
-	Username string `json:"username"`
 }
 
 func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		body, err := io.ReadAll(ctx.Request().Body)
+		if err != nil {
+			ctx.Logger().Errorf("Failed to read request: %v\n", err)
+			return ctx.JSON(500, nil)
+		}
+
+		fmt.Printf("Request body: %s\n", body)
 
 		req := &finishRegistrationReqest{}
 		err = json.Unmarshal(body, req)
@@ -270,22 +277,24 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 		// ref. https://syossan.hateblo.jp/entry/2019/01/11/175932
 		ctx.Request().Body = io.NopCloser(bytes.NewBuffer(body))
 
-		user, err := findUserByName(ctx.Request().Context(), req.Username)
-		if err != nil {
-			ctx.Logger().Errorf("User is not found: %v\n", err)
-			return ctx.JSON(404, nil)
-		}
-
 		// 認証機登録セッションを特定
 		cookie, err := ctx.Cookie("registration")
 		if err != nil {
 			ctx.Logger().Errorf("Cookie is not set: %v\n", err)
 			return ctx.JSON(400, nil)
 		}
+
 		session, err := GetSession(ctx.Request().Context(), cookie.Value)
 		if err != nil {
 			ctx.Logger().Errorf("Session is not found: %v\n", err)
 			return ctx.JSON(400, nil)
+		}
+
+		// セッションからユーザーを特定
+		user, err := findUserByID(ctx.Request().Context(), string(session.UserID))
+		if err != nil {
+			ctx.Logger().Errorf("User is not found: %v\n", err)
+			return ctx.JSON(404, nil)
 		}
 
 		res := ctx.Request()

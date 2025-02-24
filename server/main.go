@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/lib/pq"
 )
 
@@ -13,13 +14,15 @@ var (
 
 func main() {
 	e := echo.New()
-	// passkey認証ができるフォームがほしいだけなので、echoの静的ファイルハンドラを使用する。
-	e.Static("/", "web")
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowCredentials: true, // Cookieを取り扱えるようにする
+	}))
 
 	wconfig := &webauthn.Config{
 		RPDisplayName: "go-passkey-demo",
 		RPID:          "localhost",
-		RPOrigins:     []string{"http://localhost:8080"},
+		RPOrigins:     []string{"http://localhost:5173"},
 	}
 	webAuthn, err = webauthn.New(wconfig)
 

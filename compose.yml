@@ -1,6 +1,41 @@
 version: '3.3'
 
 services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    command: [ "go", "run", "." ]
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./server
+          target: /app
+          ignore:
+            - migration
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - 5173:5173
+    # NOTE: Viteの開発サーバーはデフォルトでlocalhostのみをlistenするため、ホストマシンからアクセスするためには`--host`オプションを指定する必要がある。
+    #       https://github.com/vitejs/vite/discussions/3396#discussioncomment-2568144
+    command: [ "npm", "run", "dev", "--", "--host" ]
+    develop:
+      watch:
+        - action: sync
+          path: ./web
+          target: /app
+          ignore:
+            - node_modules/
+        # node_modulesをマウントしていないため、依存関係に変更があったときコンテナをリビルドする
+        - action: rebuild
+          path: ./web/package.json
+        - action: rebuild
+          path: ./web/package-lock.json
   postgres:
     image: postgres:16
     ports:

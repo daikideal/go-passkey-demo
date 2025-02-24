@@ -9,39 +9,32 @@
 ### コンテナをビルド
 
 ```bash
-docker compose up -d --build
+docker compose build
 ```
 
 ### bun × postgres のセットアップ
 
 ```bash
-go run ./migration db init
+docker compose exec server go run ./migration db init
 ```
 
 ```bash
-go run ./migration db migrate
+docker compose exec server go run ./migration db migrate
 ```
 
 ## ローカルホスト起動
 
-docker-compose で以下のコンテナを起動:
-
-- postgres
-- redis
+docker-compose でコンテナを起動:
 
 ```bash
-docker compose up -d
+docker compose up --watch
 ```
 
-echo サーバーを起動:
-
-```bash
-go run .
-```
+※Docker Compose v2.32.4 時点では、`--detach`オプションは`--watch`オプションと併用できない。
 
 以下の URL にアクセス:
 
-http://localhost:8080/
+http://localhost:5173/
 
 ## postgres にログイン
 

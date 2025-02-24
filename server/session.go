@@ -18,7 +18,7 @@ var sessionStore *redis.Client
 
 func init() {
 	sessionStore = redis.NewClient(&redis.Options{
-		Addr:     "localhost:16379",
+		Addr:     "redis:6379",
 		Password: "",
 		DB:       0,
 	})

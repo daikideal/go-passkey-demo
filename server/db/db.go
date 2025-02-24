@@ -13,8 +13,8 @@ var (
 	// TODO: 環境変数から取得するように変更
 	dsn = fmt.Sprintf(
 		"host=%s port=%d dbname=%s user=%s password='%s' sslmode=disable search_path=%s",
-		"localhost",
-		15432,
+		"postgres",
+		5432,
 		"mydb",
 		"myuser",
 		"mypassword",
