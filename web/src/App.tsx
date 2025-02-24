@@ -10,6 +10,26 @@ import "./App.css";
 
 const App: React.FC = () => {
   const registerUser = useCallback(async (data: FormData) => {
+    // パスキーがサポートされた環境かどうかを確認
+    //
+    // TODO: そもそもコンポーネントを表示しないなどの対応にする
+    if (
+      window.PublicKeyCredential &&
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable &&
+      PublicKeyCredential.isConditionalMediationAvailable
+    ) {
+      Promise.all([
+        PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(),
+        PublicKeyCredential.isConditionalMediationAvailable(),
+      ]).then((results) => {
+        if (results.every((result) => result !== true)) {
+          alert("Passkey is not supported");
+
+          return;
+        }
+      });
+    }
+
     const username = data.get("username") as string;
     if (username === "") {
       alert("Please enter a username");
@@ -37,6 +57,8 @@ const App: React.FC = () => {
     }
     const optJson = await optionsAPIRes.json();
 
+    // TODO: `PublicKeyCredential.parseCreationOptionsFromJSON()`で置き換える
+    //       https://developer.mozilla.org/en-US/docs/Web/API/PublicKeyCredential/parseCreationOptionsFromJSON_static
     const options = parseCreationOptionsFromJSON(optJson);
     const publicKeyCredential = await create(options);
 
@@ -61,6 +83,26 @@ const App: React.FC = () => {
   }, []);
 
   const login = useCallback(async () => {
+    // パスキーがサポートされた環境かどうかを確認
+    //
+    // TODO: そもそもコンポーネントを表示しないなどの対応にする
+    if (
+      window.PublicKeyCredential &&
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable &&
+      PublicKeyCredential.isConditionalMediationAvailable
+    ) {
+      Promise.all([
+        PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(),
+        PublicKeyCredential.isConditionalMediationAvailable(),
+      ]).then((results) => {
+        if (results.every((result) => result !== true)) {
+          alert("Passkey is not supported");
+
+          return;
+        }
+      });
+    }
+
     // NOTE: ユーザーネームレス認証を目指すので、ここは入力しなくていい
     // const username = data.get("username") as string;
     // if (username === "") {
@@ -83,6 +125,8 @@ const App: React.FC = () => {
     }
     const optionsJSON = await optionsAPIResponse.json();
 
+    // TODO: `PublicKeyCredential.parseRequestOptionsFromJSON()`で置き換える
+    //       https://developer.mozilla.org/en-US/docs/Web/API/PublicKeyCredential/parseRequestOptionsFromJSON_static
     const options = parseRequestOptionsFromJSON(optionsJSON);
     const assertion = await get(options);
 
