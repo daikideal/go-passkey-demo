@@ -26,16 +26,16 @@ services:
     command: [ "npm", "run", "dev", "--", "--host" ]
     develop:
       watch:
-        - action: sync
-          path: ./web
-          target: /app
-          ignore:
-            - node_modules/
         # node_modulesをマウントしていないため、依存関係に変更があったときコンテナをリビルドする
         - action: rebuild
           path: ./web/package.json
         - action: rebuild
           path: ./web/package-lock.json
+        - action: sync
+          path: ./web
+          target: /app
+          ignore:
+            - node_modules/
   postgres:
     image: postgres:16
     ports:
