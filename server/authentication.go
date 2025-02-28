@@ -32,6 +32,10 @@ func beginLogin(w *webauthn.WebAuthn) echo.HandlerFunc {
 	}
 }
 
+type finishLoginResponse struct {
+	UserID string `json:"user_id"`
+}
+
 func finishLogin(w *webauthn.WebAuthn) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		cookie, err := ctx.Cookie("authentication")
@@ -41,13 +45,14 @@ func finishLogin(w *webauthn.WebAuthn) echo.HandlerFunc {
 		}
 		session, err := GetSession(ctx.Request().Context(), cookie.Value)
 
+		var userID string
 		// ValidateDiscoverableLogin にて、どのようにログインするユーザーを特定するかを定義する関数。
 		//
 		// userHandle は User インターフェース実装されている WebAuthnId() のこと。
 		// 今回はプライマリIDであるUUIDをバイト列に変換したものを返しているので、 userHandle を string に変換して User をクエリすればユーザーを特定できる。
 		// rawID が何なのかわかっておらず、いまいちどうやって使えばいいかわからない。
 		handler := func(rawID, userHandle []byte) (webauthn.User, error) {
-			userID := string(userHandle)
+			userID = string(userHandle)
 			user, err := findUserByID(ctx.Request().Context(), userID)
 			if err != nil {
 				ctx.Logger().Errorf("Failed to find user: %v\n", err)
@@ -63,12 +68,11 @@ func finishLogin(w *webauthn.WebAuthn) echo.HandlerFunc {
 			return ctx.JSON(http.StatusBadRequest, "Failed to parse credential request response")
 		}
 
-		credential, err := w.ValidateDiscoverableLogin(handler, *session, res)
-		if err != nil {
+		if _, err = w.ValidateDiscoverableLogin(handler, *session, res); err != nil {
 			ctx.Logger().Errorf("Failed to validate discoverable login: %v\n", err)
 			return ctx.JSON(http.StatusBadRequest, "Failed to validate discoverable login")
 		}
 
-		return ctx.JSON(http.StatusOK, credential)
+		return ctx.JSON(http.StatusOK, finishLoginResponse{UserID: userID})
 	}
 }

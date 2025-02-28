@@ -7,8 +7,11 @@ import {
 } from "@github/webauthn-json/browser-ponyfill";
 
 import "./App.css";
+import { useNavigate } from "react-router";
 
 const App: React.FC = () => {
+  const navigate = useNavigate();
+
   const registerUser = useCallback(async (data: FormData) => {
     // パスキーがサポートされた環境かどうかを確認
     //
@@ -146,9 +149,18 @@ const App: React.FC = () => {
 
       return;
     }
+    const verificationsResultJSON = await verificationsAPIResponse.json();
+    const userID = verificationsResultJSON.user_id;
+    if (!userID) {
+      alert("Failed to get user ID");
+
+      return;
+    }
 
     alert("Successfully logged in!");
-  }, []);
+
+    navigate(`/users/${userID}/public_keys`);
+  }, [navigate]);
 
   return (
     <>

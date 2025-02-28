@@ -21,6 +21,10 @@ type uuid = string
 
 // この構造体を User に紐づけて保存するための構造体
 // https://pkg.go.dev/github.com/go-webauthn/webauthn@v0.8.6/webauthn#Credential
+//
+// 2025/02/28 追記:
+// W3Cの仕様的にはCredential Recordを保存することが推奨されている。今定義しているものと合っているのかまだ確認していない。
+// https://www.w3.org/TR/webauthn-3/#credential-record
 type WebauthnCredentials struct {
 	ID              uuid                              `json:"id" bun:"id,pk"`
 	UserID          uuid                              `json:"user_id" bun:"user_id"`
@@ -111,6 +115,22 @@ func getUsers() echo.HandlerFunc {
 		}
 
 		return ctx.JSON(200, res)
+	}
+}
+
+func getUser() echo.HandlerFunc {
+	return func(ctx echo.Context) error {
+		ctx.Logger().Info("GET /user/:id")
+
+		userID := ctx.Param("id")
+
+		user, err := findUserByID(ctx.Request().Context(), userID)
+		if err != nil {
+			ctx.Logger().Errorf("Failed to find user: %v\n", err)
+			return ctx.JSON(404, nil)
+		}
+
+		return ctx.JSON(http.StatusOK, user)
 	}
 }
 
@@ -325,5 +345,19 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 		}
 
 		return ctx.JSON(201, "Registration success!")
+	}
+}
+
+func listPublicKeysByUser() echo.HandlerFunc {
+	return func(ctx echo.Context) error {
+		userID := ctx.Param("id")
+
+		user, err := findUserByID(ctx.Request().Context(), userID)
+		if err != nil {
+			ctx.Logger().Errorf("User not found: %v\n", err)
+			return ctx.JSON(404, nil)
+		}
+
+		return ctx.JSON(200, user.WebAuthnCredentials())
 	}
 }

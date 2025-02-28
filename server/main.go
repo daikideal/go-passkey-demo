@@ -24,11 +24,17 @@ func main() {
 		RPID:          "localhost",
 		RPOrigins:     []string{"http://localhost:5173"},
 	}
-	webAuthn, err = webauthn.New(wconfig)
 
-	e.GET("/", index())
+	webAuthn, err = webauthn.New(wconfig)
+	if err != nil {
+		panic(err)
+	}
+
 	e.POST("/users", createUser())
 	e.GET("/users", getUsers())
+	e.GET("/users/:id", getUser())
+	// パスキー管理
+	e.GET("/users/:id/public_keys", listPublicKeysByUser())
 	// 認証機の登録
 	e.POST("/registration/options", beginRegistration(webAuthn))
 	e.POST("/registration/verifications", finishRegistration(webAuthn))
@@ -37,10 +43,4 @@ func main() {
 	e.POST("/authentication/verifications", finishLogin(webAuthn))
 
 	e.Logger.Fatal(e.Start(":8080"))
-}
-
-func index() echo.HandlerFunc {
-	return func(ctx echo.Context) error {
-		return ctx.File("./web/index.html")
-	}
 }
