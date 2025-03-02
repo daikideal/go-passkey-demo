@@ -35,6 +35,7 @@ func main() {
 	e.GET("/users/:id", getUser())
 	// パスキー管理
 	e.GET("/users/:id/public_keys", listPublicKeysByUser())
+	e.DELETE("/users/:user_id/public_keys/:public_key_id", deletePublicKey())
 	// 認証機の登録
 	e.POST("/registration/options", beginRegistration(webAuthn))
 	e.POST("/registration/verifications", finishRegistration(webAuthn))

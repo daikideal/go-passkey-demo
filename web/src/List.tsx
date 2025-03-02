@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router";
 
 import "./List.css";
@@ -59,6 +59,31 @@ const PublicKeyList: React.FC = () => {
       .catch((err) => alert(err));
   }, [userID]);
 
+  const deletePublicKey = useCallback(
+    async (id: string) => {
+      const deleteAPIRes = await fetch(
+        `http://localhost:8080/users/${userID}/public_keys/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        }
+      );
+      if (!deleteAPIRes.ok) {
+        alert(`Failed to delete public key: ${id}`);
+
+        return;
+      }
+
+      setPublicKeys((prevPublicKeys) =>
+        prevPublicKeys.filter((publicKey) => publicKey.id !== id)
+      );
+    },
+    [userID]
+  );
+
   return (
     <div>
       <h1>{userInfo?.name}'s passkeys</h1>
@@ -67,28 +92,35 @@ const PublicKeyList: React.FC = () => {
         <thead>
           <tr>
             {PublicKeyTableColumns.map((key) => (
-              <th id={key}>{key}</th>
+              <th key={key}>{key}</th>
             ))}
+            <th>削除する</th>
           </tr>
         </thead>
         <tbody>
           {publicKeys.map((publicKey) => (
             <tr key={publicKey.id}>
-              {Object.entries(publicKey).map(([k, v]) => (
-                <td headers={k} key={k}>
+              {PublicKeyTableColumns.map((key) => (
+                <td key={key} headers={key}>
                   {
                     // NOTE: パスキー管理画面に何を表示したらいいのかわからないまま実装しているため、一旦全て表示しようとした結果、ArrayやObjectが混ざる。
                     //  - Array: カンマ区切り
                     //  - Object: JSON.stringify
                     //  - それ以外: そのまま表示
-                    Array.isArray(v)
-                      ? v.join(", ")
-                      : typeof v === "object"
-                      ? JSON.stringify(v)
-                      : v
+                    Array.isArray(publicKey[key])
+                      ? publicKey[key].join(", ")
+                      : typeof publicKey[key] === "object"
+                      ? JSON.stringify(publicKey[key])
+                      : publicKey[key]
                   }
                 </td>
               ))}
+
+              <td>
+                <button onClick={() => deletePublicKey(publicKey.id)}>
+                  削除
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

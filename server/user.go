@@ -34,6 +34,8 @@ type WebauthnCredentials struct {
 	Transport       []protocol.AuthenticatorTransport `json:"transport" bun:"transport,array"`
 	Flags           webauthn.CredentialFlags          `json:"flags" bun:"flags"`
 	Authenticator   webauthn.Authenticator            `json:"authenticator" bun:"authenticator"`
+	CreatedAt       time.Time                         `json:"created_at" bun:"created_at"`
+	UpdatedAt       time.Time                         `json:"updated_at" bun:"updated_at"`
 }
 
 type User struct {
@@ -348,16 +350,65 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 	}
 }
 
+type listPublicKeysByUserResponse struct {
+	ID              uuid                              `json:"id"`
+	CredentialID    []byte                            `json:"credential_id"`
+	PublicKey       []byte                            `json:"public_key"`
+	AttestationType string                            `json:"attestation_type"`
+	Transport       []protocol.AuthenticatorTransport `json:"transport"`
+	Flags           webauthn.CredentialFlags          `json:"flags"`
+	Authenticator   webauthn.Authenticator            `json:"authenticator"`
+}
+
 func listPublicKeysByUser() echo.HandlerFunc {
+	db := db.GetDB()
+
 	return func(ctx echo.Context) error {
 		userID := ctx.Param("id")
 
-		user, err := findUserByID(ctx.Request().Context(), userID)
-		if err != nil {
-			ctx.Logger().Errorf("User not found: %v\n", err)
-			return ctx.JSON(404, nil)
+		var credentials []*WebauthnCredentials
+		if err := db.NewSelect().
+			Model(&credentials).
+			Column("*").
+			Where("user_id = ?", userID).
+			Scan(ctx.Request().Context()); err != nil {
+			ctx.Logger().Errorf("Failed to select webauthn credentials: %v\n", err)
+			return ctx.JSON(500, nil)
 		}
 
-		return ctx.JSON(200, user.WebAuthnCredentials())
+		res := make([]listPublicKeysByUserResponse, len(credentials))
+		for i, v := range credentials {
+			res[i] = listPublicKeysByUserResponse{
+				ID:              v.ID,
+				CredentialID:    v.CredentialID,
+				PublicKey:       v.PublicKey,
+				AttestationType: v.AttestationType,
+				Transport:       v.Transport,
+				Flags:           v.Flags,
+				Authenticator:   v.Authenticator,
+			}
+		}
+
+		return ctx.JSON(http.StatusOK, res)
+	}
+}
+
+func deletePublicKey() echo.HandlerFunc {
+	db := db.GetDB()
+
+	return func(ctx echo.Context) error {
+		userID := ctx.Param("user_id")
+		publicKeyID := ctx.Param("public_key_id")
+
+		_, err := db.NewDelete().
+			Model(&WebauthnCredentials{}).
+			Where("user_id = ? AND id = ?", userID, publicKeyID).
+			Exec(ctx.Request().Context())
+		if err != nil {
+			ctx.Logger().Errorf("Failed to delete webauthn credential: %v\n", err)
+			return ctx.JSON(http.StatusInternalServerError, nil)
+		}
+
+		return ctx.JSON(http.StatusNoContent, nil)
 	}
 }
