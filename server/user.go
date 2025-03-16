@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,10 +14,9 @@ import (
 	"github.com/daikideal/go-passkey-demo/db"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
-
-type uuid = string
 
 // この構造体を User に紐づけて保存するための構造体
 // https://pkg.go.dev/github.com/go-webauthn/webauthn@v0.8.6/webauthn#Credential
@@ -27,8 +25,8 @@ type uuid = string
 // W3Cの仕様的にはCredential Recordを保存することが推奨されている。今定義しているものと合っているのかまだ確認していない。
 // https://www.w3.org/TR/webauthn-3/#credential-record
 type WebauthnCredentials struct {
-	ID              uuid                              `json:"id" bun:"id,pk"`
-	UserID          uuid                              `json:"user_id" bun:"user_id"`
+	ID              string                            `json:"id" bun:"id,pk"`
+	UserID          string                            `json:"user_id" bun:"user_id"`
 	CredentialID    []byte                            `json:"credential_id" bun:"credential_id"`
 	PublicKey       []byte                            `json:"public_key" bun:"public_key"`
 	AttestationType string                            `json:"attestation_type" bun:"attestation_type"`
@@ -40,7 +38,7 @@ type WebauthnCredentials struct {
 }
 
 type User struct {
-	ID                  uuid                  `json:"id" bun:"id,pk"`
+	ID                  string                `json:"id" bun:"id,pk"`
 	Name                string                `json:"name" bun:"name"`
 	WebauthnCredentials []WebauthnCredentials `json:"webauthn_credentials" bun:"rel:has-many,join:id=user_id"`
 	CreatedAt           time.Time             `json:"created_at" bun:"created_at"`
@@ -166,7 +164,7 @@ func createUser() echo.HandlerFunc {
 	}
 }
 
-func findUserByID(ctx context.Context, id uuid) (*User, error) {
+func findUserByID(ctx context.Context, id string) (*User, error) {
 	db := db.GetDB()
 
 	var user User
@@ -327,8 +325,6 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 			return ctx.JSON(500, nil)
 		}
 
-		fmt.Printf("AAGUID: %s\n", parseAaguidAsUuid(credential.Authenticator.AAGUID))
-
 		newWebautnCredential := &WebauthnCredentials{
 			UserID:          user.ID,
 			CredentialID:    credential.ID,
@@ -353,25 +349,9 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 	}
 }
 
-// `webauthn.Authenticator.AAGUID` をUUIDフォーマットに変換する。
-//
-// SEE:
-//   - https://github.com/passkeydeveloper/passkey-authenticator-aaguids/blob/main/aaguid.json
-//   - https://github.com/web-auth/webauthn-framework/pull/49
-func parseAaguidAsUuid(aaguid []byte) string {
-	hexString := hex.EncodeToString(aaguid)
-
-	return fmt.Sprintf("%s-%s-%s-%s-%s", hexString[0:8], hexString[8:12], hexString[12:16], hexString[16:20], hexString[20:])
-}
-
 type listPublicKeysByUserResponse struct {
-	ID              uuid                              `json:"id"`
-	CredentialID    []byte                            `json:"credential_id"`
-	PublicKey       []byte                            `json:"public_key"`
-	AttestationType string                            `json:"attestation_type"`
-	Transport       []protocol.AuthenticatorTransport `json:"transport"`
-	Flags           webauthn.CredentialFlags          `json:"flags"`
-	Authenticator   webauthn.Authenticator            `json:"authenticator"`
+	ID     string `json:"id"`
+	AAGUID string `json:"AAGUID"`
 }
 
 func listPublicKeysByUser() echo.HandlerFunc {
@@ -392,14 +372,16 @@ func listPublicKeysByUser() echo.HandlerFunc {
 
 		res := make([]listPublicKeysByUserResponse, len(credentials))
 		for i, v := range credentials {
+			// 参考: https://github.com/go-webauthn/webauthn/blob/debcfe78a7c30c1d9115c889115fe583042c81a4/webauthn/login.go#L346
+			aaguid, err := uuid.FromBytes(v.Authenticator.AAGUID)
+			if err != nil {
+				ctx.Logger().Errorf("AAGUID is wrong: %w\n", err)
+				continue
+			}
+
 			res[i] = listPublicKeysByUserResponse{
-				ID:              v.ID,
-				CredentialID:    v.CredentialID,
-				PublicKey:       v.PublicKey,
-				AttestationType: v.AttestationType,
-				Transport:       v.Transport,
-				Flags:           v.Flags,
-				Authenticator:   v.Authenticator,
+				ID:     v.ID,
+				AAGUID: aaguid.String(),
 			}
 		}
 
