@@ -353,7 +353,11 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 	}
 }
 
-// SEE: https://github.com/web-auth/webauthn-framework/pull/49
+// `webauthn.Authenticator.AAGUID` をUUIDフォーマットに変換する。
+//
+// SEE:
+//   - https://github.com/passkeydeveloper/passkey-authenticator-aaguids/blob/main/aaguid.json
+//   - https://github.com/web-auth/webauthn-framework/pull/49
 func parseAaguidAsUuid(aaguid []byte) string {
 	hexString := hex.EncodeToString(aaguid)
 
