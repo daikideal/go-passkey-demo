@@ -99,13 +99,23 @@ const PasskeyInfoList: React.FC = () => {
         <caption>{userInfo?.name}'s passkeys</caption>
         <thead>
           <tr>
-            <th key="AAGUID">AAGUID</th>
+            <th key="icon">アイコン</th>
+            <th key="name">名前</th>
             <th>削除する</th>
           </tr>
         </thead>
         <tbody>
           {PasskeyInfos.map((PasskeyInfo) => (
             <tr key={PasskeyInfo.id}>
+              <td key="icon">
+                <span>
+                  {aaguid ? (
+                    <img src={aaguid[PasskeyInfo.AAGUID].icon_light} />
+                  ) : (
+                    "Unknown"
+                  )}
+                </span>
+              </td>
               <td key="AAGUID">
                 <span>
                   {aaguid ? aaguid[PasskeyInfo.AAGUID].name : "Unknown"}
