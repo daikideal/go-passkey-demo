@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -326,11 +327,7 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 			return ctx.JSON(500, nil)
 		}
 
-		// TODO: AAGUIDが文字化け？しているのを修正したい
-		//
-		// 1Passwordの `bada5566-a7aa-401f-bd96-45619a55120d` が `�f@EaU` になってしまう。
-		// https://github.com/passkeydeveloper/passkey-authenticator-aaguids/blob/bc2ca759d5495093b6860c65d073b62ea311b182/aaguid.json#L37
-		fmt.Printf("AAGUID: %s\n", credential.Authenticator.AAGUID)
+		fmt.Printf("AAGUID: %s\n", parseAaguidAsUuid(credential.Authenticator.AAGUID))
 
 		newWebautnCredential := &WebauthnCredentials{
 			UserID:          user.ID,
@@ -354,6 +351,13 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 
 		return ctx.JSON(201, "Registration success!")
 	}
+}
+
+// SEE: https://github.com/web-auth/webauthn-framework/pull/49
+func parseAaguidAsUuid(aaguid []byte) string {
+	hexString := hex.EncodeToString(aaguid)
+
+	return fmt.Sprintf("%s-%s-%s-%s-%s", hexString[0:8], hexString[8:12], hexString[12:16], hexString[16:20], hexString[20:])
 }
 
 type listPublicKeysByUserResponse struct {
