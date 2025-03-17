@@ -350,8 +350,9 @@ func finishRegistration(w *webauthn.WebAuthn) echo.HandlerFunc {
 }
 
 type listPublicKeysByUserResponse struct {
-	ID     string `json:"id"`
-	AAGUID string `json:"AAGUID"`
+	ID        string    `json:"id"`
+	AAGUID    string    `json:"AAGUID"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func listPublicKeysByUser() echo.HandlerFunc {
@@ -380,8 +381,9 @@ func listPublicKeysByUser() echo.HandlerFunc {
 			}
 
 			res[i] = listPublicKeysByUserResponse{
-				ID:     v.ID,
-				AAGUID: aaguid.String(),
+				ID:        v.ID,
+				AAGUID:    aaguid.String(),
+				CreatedAt: v.CreatedAt,
 			}
 		}
 

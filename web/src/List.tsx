@@ -11,6 +11,7 @@ type UserInfo = {
 type PasskeyInfo = {
   id: string;
   AAGUID: string;
+  created_at: string;
 };
 
 /**
@@ -101,6 +102,7 @@ const PasskeyInfoList: React.FC = () => {
           <tr>
             <th key="icon">アイコン</th>
             <th key="name">名前</th>
+            <th key="created-at">作成日時</th>
             <th>削除する</th>
           </tr>
         </thead>
@@ -119,6 +121,13 @@ const PasskeyInfoList: React.FC = () => {
               <td key="AAGUID">
                 <span>
                   {aaguid ? aaguid[PasskeyInfo.AAGUID].name : "Unknown"}
+                </span>
+              </td>
+              <td key="created-at">
+                <span>
+                  {new Date(PasskeyInfo.created_at).toLocaleString("ja-JP", {
+                    timeZone: "Asia/Tokyo",
+                  })}
                 </span>
               </td>
               <td>
