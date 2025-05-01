@@ -15,6 +15,9 @@ services:
           target: /app
           ignore:
             - migration
+        - action: sync
+          path: ./server/migration
+          target: /app/migration
   web:
     build:
       context: ./web

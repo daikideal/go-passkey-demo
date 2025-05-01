@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/daikideal/go-passkey-demo/db"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/labstack/echo/v4"
@@ -50,7 +53,6 @@ func finishLogin(w *webauthn.WebAuthn) echo.HandlerFunc {
 		//
 		// userHandle は User インターフェース実装されている WebAuthnId() のこと。
 		// 今回はプライマリIDであるUUIDをバイト列に変換したものを返しているので、 userHandle を string に変換して User をクエリすればユーザーを特定できる。
-		// rawID が何なのかわかっておらず、いまいちどうやって使えばいいかわからない。
 		handler := func(rawID, userHandle []byte) (webauthn.User, error) {
 			userID = string(userHandle)
 			user, err := findUserByID(ctx.Request().Context(), userID)
@@ -68,11 +70,33 @@ func finishLogin(w *webauthn.WebAuthn) echo.HandlerFunc {
 			return ctx.JSON(http.StatusBadRequest, "Failed to parse credential request response")
 		}
 
-		if _, err = w.ValidateDiscoverableLogin(handler, *session, res); err != nil {
+		credential, err := w.ValidateDiscoverableLogin(handler, *session, res)
+		if err != nil {
 			ctx.Logger().Errorf("Failed to validate discoverable login: %v\n", err)
 			return ctx.JSON(http.StatusBadRequest, "Failed to validate discoverable login")
 		}
 
+		if err := updateWebAuthnCredentialUsage(ctx.Request().Context(), credential.ID); err != nil {
+			ctx.Logger().Errorf("Failed to update credential usage: %w\n", err)
+			return ctx.JSON(http.StatusBadRequest, "Failed to update credential usage")
+		}
+
 		return ctx.JSON(http.StatusOK, finishLoginResponse{UserID: userID})
 	}
+}
+
+// WARNING:
+//   - 更新対象の検索をbytea型のカラムに対するWHEREで行っている。動きはするが、パフォーマンスに将来的な懸念がある
+//   - `protocol.ParsedCredentialAssertionData.rawID`を渡しても`webauthn.Credential.ID`を渡しても同じ結果が得られるが、理由がよくわからない
+func updateWebAuthnCredentialUsage(ctx context.Context, credentialID []byte) error {
+	db := db.GetDB()
+
+	if _, err := db.NewUpdate().NewRaw(
+		"UPDATE webauthn_credentials SET used_count = used_count + 1, last_used_at = ?, updated_at = ? WHERE credential_id = ?",
+		time.Now(), time.Now(), credentialID,
+	).Exec(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }

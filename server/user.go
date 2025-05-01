@@ -33,6 +33,8 @@ type WebauthnCredentials struct {
 	Transport       []protocol.AuthenticatorTransport `json:"transport" bun:"transport,array"`
 	Flags           webauthn.CredentialFlags          `json:"flags" bun:"flags"`
 	Authenticator   webauthn.Authenticator            `json:"authenticator" bun:"authenticator"`
+	UsedCount       int                               `json:"used_count" bun:"used_count"`
+	LastUsedAt      time.Time                         `json:"last_used_at" bun:"last_used_at"`
 	CreatedAt       time.Time                         `json:"created_at" bun:"created_at"`
 	UpdatedAt       time.Time                         `json:"updated_at" bun:"updated_at"`
 }

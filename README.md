@@ -36,6 +36,12 @@ docker compose up --watch
 
 http://localhost:5173/
 
+## DB マイグレーションファイルを追加
+
+```shell
+docker compose run --volume=${PWD}/server/migration:/app/migration server go run ./migration db create_sql <migration_name>
+```
+
 ## postgres にログイン
 
 起動した postgres コンテナで psql コマンドを実行し、db にログイン:
